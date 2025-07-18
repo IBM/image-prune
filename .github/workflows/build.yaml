@@ -16,3 +16,5 @@ jobs:
       - name: build
         run: |
           make build
+      - name: lint
+        uses: golangci/golangci-lint-action@v8

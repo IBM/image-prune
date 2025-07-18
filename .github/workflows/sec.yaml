@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-go@v5
       - name: dependencies
         run: |
-          apt-get install libbtrfs-dev -y
+          sudo apt-get install libbtrfs-dev -y
       - name: govulncheck
         uses: golang/govulncheck-action@v1
         with:
