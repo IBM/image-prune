@@ -22,5 +22,11 @@ build:
 			./cmd; \
 	done \
 
+lint-dependencies:
+	@GOBIN=/usr/local/bin/ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.2.2
+
+lint:
+	@golangci-lint run
+
 release:
 	bash ci/release.sh "$(VERSION)" "$(PLATFORMS)"

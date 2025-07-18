@@ -17,4 +17,6 @@ jobs:
         run: |
           make build
       - name: lint
-        uses: golangci/golangci-lint-action@v8
+        run: |
+          make lint-dependencies
+          make lint
