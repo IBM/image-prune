@@ -11,21 +11,15 @@ import (
 
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/common/pkg/retry"
-	"github.com/containers/image/v5/directory"
-	"github.com/containers/image/v5/manifest"
 	ociarchive "github.com/containers/image/v5/oci/archive"
 	ocilayout "github.com/containers/image/v5/oci/layout"
-	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	dockerdistributionerrcode "github.com/docker/distribution/registry/api/errcode"
 	dockerdistributionapi "github.com/docker/distribution/registry/api/v2"
-	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/term"
 )
 
 // errorShouldDisplayUsage is a subtype of error used by command handlers to indicate that the command’s help should be included.
@@ -78,26 +72,6 @@ func commandAction(handler func(args []string, stdout io.Writer) error) func(cmd
 // DO NOT ADD ANY NEW USES OF THIS; just call dockerImageFlags with an appropriate, possibly empty, flagPrefix.
 type deprecatedTLSVerifyOption struct {
 	tlsVerify commonFlag.OptionalBool // FIXME FIXME: Warn if this is used, or even if it is ignored.
-}
-
-// warnIfUsed warns if tlsVerify was set by the user, and suggests alternatives (which should
-// start with "--").
-// Every user should call this as part of handling the CLI, whether or not the value actually
-// ends up being used.
-func (opts *deprecatedTLSVerifyOption) warnIfUsed(alternatives []string) {
-	if opts.tlsVerify.Present() {
-		logrus.Warnf("'--tls-verify' is deprecated, instead use: %s", strings.Join(alternatives, ", "))
-	}
-}
-
-// deprecatedTLSVerifyFlags prepares the CLI flag writing into deprecatedTLSVerifyOption, and the managed deprecatedTLSVerifyOption structure.
-// DO NOT ADD ANY NEW USES OF THIS; just call dockerImageFlags with an appropriate, possibly empty, flagPrefix.
-func deprecatedTLSVerifyFlags() (pflag.FlagSet, *deprecatedTLSVerifyOption) {
-	opts := deprecatedTLSVerifyOption{}
-	fs := pflag.FlagSet{}
-	flag := commonFlag.OptionalBoolFlag(&fs, &opts.tlsVerify, "tls-verify", "require HTTPS and verify certificates when accessing the container registry")
-	flag.Hidden = true
-	return fs, &opts
 }
 
 // sharedImageOptions collects CLI flags which are image-related, but do not change across images.
@@ -171,17 +145,6 @@ func dockerImageFlags(global *globalOptions, shared *sharedImageOptions, depreca
 	return fs, &flags
 }
 
-// imageFlags prepares a collection of CLI flags writing into imageOptions, and the managed imageOptions structure.
-func imageFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLSVerify *deprecatedTLSVerifyOption, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageOptions) {
-	dockerFlags, opts := dockerImageFlags(global, shared, deprecatedTLSVerify, flagPrefix, credsOptionAlias)
-
-	fs := pflag.FlagSet{}
-	fs.AddFlagSet(&dockerFlags)
-	fs.StringVar(&opts.sharedBlobDir, flagPrefix+"shared-blob-dir", "", "`DIRECTORY` to use to share blobs across OCI repositories")
-	fs.StringVar(&opts.dockerDaemonHost, flagPrefix+"daemon-host", "", "use docker daemon host at `HOST` (docker-daemon: only)")
-	return fs, opts
-}
-
 func retryFlags() (pflag.FlagSet, *retry.Options) {
 	opts := retry.Options{}
 	fs := pflag.FlagSet{}
@@ -252,83 +215,6 @@ func (opts *imageOptions) newSystemContext() (*types.SystemContext, error) {
 	return ctx, nil
 }
 
-// imageDestOptions is a superset of imageOptions specialized for image destinations.
-// Every user should call imageDestOptions.warnAboutIneffectiveOptions() as part of handling the CLI
-type imageDestOptions struct {
-	*imageOptions
-	dirForceCompression         bool                   // Compress layers when saving to the dir: transport
-	dirForceDecompression       bool                   // Decompress layers when saving to the dir: transport
-	ociAcceptUncompressedLayers bool                   // Whether to accept uncompressed layers in the oci: transport
-	compressionFormat           string                 // Format to use for the compression
-	compressionLevel            commonFlag.OptionalInt // Level to use for the compression
-	precomputeDigests           bool                   // Precompute digests to dedup layers when saving to the docker: transport
-	imageDestFlagPrefix         string
-}
-
-// imageDestFlags prepares a collection of CLI flags writing into imageDestOptions, and the managed imageDestOptions structure.
-func imageDestFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLSVerify *deprecatedTLSVerifyOption, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageDestOptions) {
-	genericFlags, genericOptions := imageFlags(global, shared, deprecatedTLSVerify, flagPrefix, credsOptionAlias)
-	opts := imageDestOptions{imageOptions: genericOptions, imageDestFlagPrefix: flagPrefix}
-	fs := pflag.FlagSet{}
-	fs.AddFlagSet(&genericFlags)
-	fs.BoolVar(&opts.dirForceCompression, flagPrefix+"compress", false, "Compress tarball image layers when saving to directory using the 'dir' transport. (default is same compression type as source)")
-	fs.BoolVar(&opts.dirForceDecompression, flagPrefix+"decompress", false, "Decompress tarball image layers when saving to directory using the 'dir' transport. (default is same compression type as source)")
-	fs.BoolVar(&opts.ociAcceptUncompressedLayers, flagPrefix+"oci-accept-uncompressed-layers", false, "Allow uncompressed image layers when saving to an OCI image using the 'oci' transport. (default is to compress things that aren't compressed)")
-	fs.StringVar(&opts.compressionFormat, flagPrefix+"compress-format", "", "`FORMAT` to use for the compression")
-	fs.Var(commonFlag.NewOptionalIntValue(&opts.compressionLevel), flagPrefix+"compress-level", "`LEVEL` to use for the compression")
-	fs.BoolVar(&opts.precomputeDigests, flagPrefix+"precompute-digests", false, "Precompute digests to prevent uploading layers already on the registry using the 'docker' transport.")
-	return fs, &opts
-}
-
-// newSystemContext returns a *types.SystemContext corresponding to opts.
-// It is guaranteed to return a fresh instance, so it is safe to make additional updates to it.
-func (opts *imageDestOptions) newSystemContext() (*types.SystemContext, error) {
-	ctx, err := opts.imageOptions.newSystemContext()
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.DirForceCompress = opts.dirForceCompression
-	ctx.DirForceDecompress = opts.dirForceDecompression
-	ctx.OCIAcceptUncompressedLayers = opts.ociAcceptUncompressedLayers
-	if opts.compressionFormat != "" {
-		cf, err := compression.AlgorithmByName(opts.compressionFormat)
-		if err != nil {
-			return nil, err
-		}
-		ctx.CompressionFormat = &cf
-	}
-	if opts.compressionLevel.Present() {
-		value := opts.compressionLevel.Value()
-		ctx.CompressionLevel = &value
-	}
-	ctx.DockerRegistryPushPrecomputeDigests = opts.precomputeDigests
-	return ctx, err
-}
-
-// warnAboutIneffectiveOptions warns if any ineffective option was set by the user
-// Every user should call this as part of handling the CLI
-func (opts *imageDestOptions) warnAboutIneffectiveOptions(destTransport types.ImageTransport) {
-	if destTransport.Name() != directory.Transport.Name() {
-		if opts.dirForceCompression {
-			logrus.Warnf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"compress")
-		}
-		if opts.dirForceDecompression {
-			logrus.Warnf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"decompress")
-		}
-	}
-}
-
-// sharedCopyOptions collects CLI flags that affect copying images, currently shared between the copy and sync commands.
-type sharedCopyOptions struct {
-	removeSignatures         bool                      // Do not copy signatures from the source image
-	signBySigstoreParamFile  string                    // Sign the image using a sigstore signature per configuration in a param file
-	signBySigstorePrivateKey string                    // Sign the image using a sigstore private key
-	signPassphraseFile       string                    // Path pointing to a passphrase file when signing
-	preserveDigests          bool                      // Preserve digests during copy
-	format                   commonFlag.OptionalString // Force conversion of the image to a specified format
-}
-
 func parseCreds(creds string) (string, string, error) {
 	if creds == "" {
 		return "", "", errors.New("credentials can't be empty")
@@ -365,21 +251,6 @@ func parseImageSource(ctx context.Context, opts *imageOptions, name string) (typ
 	return ref.NewImageSource(ctx, sys)
 }
 
-// parseManifestFormat parses format parameter for copy and sync command.
-// It returns string value to use as manifest MIME type
-func parseManifestFormat(manifestFormat string) (string, error) {
-	switch manifestFormat {
-	case "oci":
-		return imgspecv1.MediaTypeImageManifest, nil
-	case "v2s1":
-		return manifest.DockerV2Schema1SignedMediaType, nil
-	case "v2s2":
-		return manifest.DockerV2Schema2MediaType, nil
-	default:
-		return "", fmt.Errorf("unknown format %q. Choose one of the supported formats: 'oci', 'v2s1', or 'v2s2'", manifestFormat)
-	}
-}
-
 // usageTemplate returns the usage template for skopeo commands
 // This blocks the displaying of the global options. The main skopeo
 // command should not use this.
@@ -407,22 +278,6 @@ Flags:
 func adjustUsage(c *cobra.Command) {
 	c.SetUsageTemplate(usageTemplate)
 	c.DisableFlagsInUseLine = true
-}
-
-// promptForPassphrase interactively prompts for a passphrase related to privateKeyFile
-func promptForPassphrase(privateKeyFile string, stdin, stdout *os.File) (string, error) {
-	stdinFd := int(stdin.Fd())
-	if !term.IsTerminal(stdinFd) {
-		return "", fmt.Errorf("Cannot prompt for a passphrase for key %s, standard input is not a TTY", privateKeyFile)
-	}
-
-	fmt.Fprintf(stdout, "Passphrase for key %s: ", privateKeyFile)
-	passphrase, err := term.ReadPassword(stdinFd)
-	if err != nil {
-		return "", fmt.Errorf("Error reading password: %w", err)
-	}
-	fmt.Fprintf(stdout, "\n")
-	return string(passphrase), nil
 }
 
 // isNotFoundImageError heuristically attempts to determine whether an error
