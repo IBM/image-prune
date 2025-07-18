@@ -3,6 +3,8 @@ name: Build
 on:
   push:
     branches: '**'
+    release:
+      types: [created]
 
 permissions:
   contents: write
@@ -13,13 +15,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
+      # Required so that golangci-lint can inspect containers/storage
+      # Not actually required for the build, we explicitly turn off btrfs
       - name: dependencies
         run: |
           sudo apt-get install libbtrfs-dev -y
-      - name: build
-        run: |
-          make build
       - name: lint
         run: |
           make lint-dependencies
           make lint
+      - name: build
+        run: |
+          make build
+      - name: release
+        uses: actions/upload-release-asset@v1
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          make release \
+            RELEASE_UPLOAD_URL="${{ github.event.release.upload_url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

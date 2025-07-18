@@ -9,6 +9,8 @@ LINKER_FLAGS := "-X $(VERSION_LINKER_FLAG) -X $(DATE_LINKER_FLAG) -X $(COMMIT_LI
 
 PLATFORMS ?= darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x
 
+RELEASE_UPLOAD_URL ?=
+
 build:
 	for plt in $(PLATFORMS); \
 	do \
@@ -29,4 +31,4 @@ lint:
 	@golangci-lint run
 
 release:
-	bash ci/release.sh "$(VERSION)" "$(PLATFORMS)"
+	bash ci/release.sh "$(RELEASE_UPLOAD_URL)" "$(PLATFORMS)"

@@ -10,9 +10,15 @@ fi
 GITHUB_API_DOMAIN="github.com"
 GITHUB_REPO_SHORT_NAME="IBM/image-prune"
 
-# Platforms built
-VERSION=$($1:-"v0.1.0")
+# Input parameters
+UPLOAD_URL=$($1)
 PLATFORMS=${$2:-"darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x"}
+
+# Ensure UPLOAD_URL is set
+if [ -z "$UPLOAD_URL" ]; then
+    echo "GITHUB_TOKEN environment variable must be set"
+    exit 1
+fi
 
 ### Add release assets
 #
@@ -32,57 +38,6 @@ function add_release_assets() {
             "${upload_url}" \
             "${WORKDIR}/dist/image-prune-${platform_suffix}"
     done
-}
-
-### Get release description
-#
-# Given the build version, format the release description for the release
-#
-# Args:
-# 1. build_version: The build version being released
-#
-# Returns:
-# The formatted release description markdown
-function get_release_description() {
-    local build_version=$1
-    local release_notes=$(
-        cat "${WORKDIR}/ci/release.md" | \
-            sed "s/<IMAGE_PRUNE_VERSION>/$build_version/g"
-    )
-    echo "$release_notes"
-}
-
-### Create release
-#
-# Given a repository tag name, create a corresponding release
-#
-# Args:
-# 1. build_version: The build version being released
-#
-# Returns:
-# The cURL response from the GitHub API for creating the release
-function create_release() {
-    local build_version=$1
-
-    # Construct the request body
-    local req_body=$(
-        jq -n \
-            --arg tag_name "${build_version}" \
-            --arg name "${build_version}" \
-            --arg body "$(get_release_description ${build_version})" \
-            --argjson generate_release_notes true \
-            '$ARGS.named'
-    )
-
-    # Send the request & capture the response
-    local res_body=$(
-        curl -s -L \
-            -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            https://api.${GITHUB_API_DOMAIN}/repos/${GITHUB_REPO_SHORT_NAME}/releases \
-            -d "$req_body"
-    )
-    echo "$res_body"
 }
 
 ### Create release asset
@@ -114,21 +69,4 @@ function create_release_asset() {
     echo $asset_res
 }
 
-### Release image-prune
-#
-# Release the image-prune binaries
-#
-# Args:
-# None
-#
-# Returns:
-# None
-function release_image_prune() {
-    echo "Creating release $VERSION"
-    local release_res=$(create_release "$VERSION")
-    local upload_url="$(echo $release_res | jq -r '.upload_url')"
-    upload_url="${upload_url%\{*}"
-    add_release_assets "$VERSION" "$upload_url"
-}
-
-release_image_prune
+add_release_assets "${UPLOAD_URL}"
