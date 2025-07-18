@@ -28,7 +28,6 @@ jobs:
         run: |
           make build
       - name: release
-        uses: actions/upload-release-asset@v1
         if: ${{ github.event_name == 'release' }}
         run: |
           make release \
