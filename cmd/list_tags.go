@@ -16,7 +16,6 @@ import (
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -84,7 +83,6 @@ type tagsOptions struct {
 
 var transportHandlers = map[string]func(ctx context.Context, sys *types.SystemContext, opts *tagsOptions, userInput string) (repositoryName string, tagListing []string, err error){
 	docker.Transport.Name():  listDockerRepoTags,
-	archive.Transport.Name(): listDockerArchiveTags,
 }
 
 // supportedTransports returns all the supported transports
@@ -142,7 +140,7 @@ func parseDockerRepositoryReference(refString string) (types.ImageReference, err
 	}
 
 	if !reference.IsNameOnly(ref) {
-		return nil, errors.New(`No tag or digest allowed in reference`)
+		return nil, errors.New(`no tag or digest allowed in reference`)
 	}
 
 	// Checks ok, now return a reference. This is a hack because the tag listing code expects a full image reference even though the tag is ignored
@@ -223,7 +221,7 @@ func filterDockerTagsByTagSemver(opts *tagsOptions, tags *tagListOutput) (*filte
 	for _, tag := range tags.Tags {
 		err := filterDockerTagBySemver(filtered, opts, threshold, tag, tag)
 		if err != nil {
-			return nil, fmt.Errorf("Error filtering tags: %w", err)
+			return nil, fmt.Errorf("error filtering tags: %w", err)
 		}
 	}
 	return filtered, nil
@@ -313,7 +311,7 @@ func filterDockerTagsByImageMetadata(ctx context.Context, sys *types.SystemConte
 				src, err = parseImageSource(ctx, opts.image, imageName)
 				return err
 			}, opts.retryOpts); err != nil {
-				errChan <- fmt.Errorf("Error parsing image name %q: %w", imageName, err)
+				errChan <- fmt.Errorf("error parsing image name %q: %w", imageName, err)
 				return
 			}
 			defer func() {
@@ -325,7 +323,7 @@ func filterDockerTagsByImageMetadata(ctx context.Context, sys *types.SystemConte
 			unparsedInstance := image.UnparsedInstance(src, nil)
 			img, err := image.FromUnparsedImage(ctx, sys, unparsedInstance)
 			if err != nil {
-				errChan <- fmt.Errorf("Error parsing manifest for tag %s: %w", tag, err)
+				errChan <- fmt.Errorf("error parsing manifest for tag %s: %w", tag, err)
 				return
 			}
 			if err := retry.IfNecessary(ctx, func() error {
@@ -341,24 +339,24 @@ func filterDockerTagsByImageMetadata(ctx context.Context, sys *types.SystemConte
 				versionLabel := opts.filterOpts.VersionLabel.Value()
 				tagVersion, ok := imgInspect.Labels[versionLabel]
 				if !ok {
-					errChan <- fmt.Errorf("For tag %s: version label not found: %s", tag, versionLabel)
+					errChan <- fmt.Errorf("for tag %s: version label not found: %s", tag, versionLabel)
 					return
 				}
 				err = filterDockerTagBySemver(filtered, opts, versionThreshold, tag, tagVersion)
 				if err != nil {
-					errChan <- fmt.Errorf("For tag %s: error filtering: %w", tag, err)
+					errChan <- fmt.Errorf("for tag %s: error filtering: %w", tag, err)
 					return
 				}
 			} else {
 				// If there is a time threshold, then filter by the created date
 				timeThreshold, err := time.Parse(time.RFC3339, opts.filterOpts.BeforeTime.Value())
 				if err != nil {
-					errChan <- fmt.Errorf("Error parsing time threshold for filtering: %w", err)
+					errChan <- fmt.Errorf("error parsing time threshold for filtering: %w", err)
 					return
 				}
 				err = filterDockerTagByDate(filtered, opts, timeThreshold, tag, *imgInspect.Created)
 				if err != nil {
-					errChan <- fmt.Errorf("For tag %s: error filtering: %w", tag, err)
+					errChan <- fmt.Errorf("for tag %s: error filtering: %w", tag, err)
 					return
 				}
 			}
@@ -388,7 +386,7 @@ func filterDockerTagsByImageMetadata(ctx context.Context, sys *types.SystemConte
 
 	// Return the filtered tags, and an error summary if any errors occurred
 	if numErrors > 0 {
-		return filtered, fmt.Errorf("Encountered %d errors while filtering tags by inspect metadata", numErrors)
+		return filtered, fmt.Errorf("encountered %d errors while filtering tags by inspect metadata", numErrors)
 	}
 	return filtered, nil
 }
@@ -407,7 +405,7 @@ func filterDockerTags(ctx context.Context, sys *types.SystemContext, opts *tagsO
 func listFilteredDockerTags(ctx context.Context, sys *types.SystemContext, opts *tagsOptions, repositoryName string, tags []string) (string, []string, error) {
 	filtered, err := filterDockerTags(ctx, sys, opts, repositoryName, tags)
 	if err != nil {
-		return ``, nil, fmt.Errorf("Error filtering tags by semver: %w", err)
+		return ``, nil, fmt.Errorf("error filtering tags by semver: %w", err)
 	}
 	if opts.filterOpts.BeforeVersion.Present() || opts.filterOpts.BeforeTime.Present() {
 		toPrune := filtered.ToPrune
@@ -431,7 +429,7 @@ func listDockerTags(ctx context.Context, sys *types.SystemContext, opts *tagsOpt
 
 	tags, err := docker.GetRepositoryTags(ctx, sys, imgRef)
 	if err != nil {
-		return ``, nil, fmt.Errorf("Error listing repository tags: %w", err)
+		return ``, nil, fmt.Errorf("error listing repository tags: %w", err)
 	}
 
 	// If the user requests all tags before a certain threshold, then filter
@@ -458,48 +456,12 @@ func listDockerRepoTags(ctx context.Context, sys *types.SystemContext, opts *tag
 	return
 }
 
-// return the tagLists from a docker archive file
-func listDockerArchiveTags(_ context.Context, sys *types.SystemContext, _ *tagsOptions, userInput string) (repositoryName string, tagListing []string, err error) {
-	ref, err := alltransports.ParseImageName(userInput)
-	if err != nil {
-		return
-	}
-
-	tarReader, _, err := archive.NewReaderForReference(sys, ref)
-	if err != nil {
-		return
-	}
-	defer tarReader.Close()
-
-	imageRefs, err := tarReader.List()
-	if err != nil {
-		return
-	}
-
-	var repoTags []string
-	for imageIndex, items := range imageRefs {
-		for _, ref := range items {
-			repoTags, err = tarReader.ManifestTagsForReference(ref)
-			if err != nil {
-				return
-			}
-			// handle for each untagged image
-			if len(repoTags) == 0 {
-				repoTags = []string{fmt.Sprintf("@%d", imageIndex)}
-			}
-			tagListing = append(tagListing, repoTags...)
-		}
-	}
-
-	return
-}
-
 func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 	ctx, cancel := opts.global.commandTimeoutContext()
 	defer cancel()
 
 	if len(args) != 1 {
-		return errorShouldDisplayUsage{errors.New("Exactly one non-option argument expected")}
+		return errorShouldDisplayUsage{errors.New("exactly one non-option argument expected")}
 	}
 
 	sys, err := opts.image.newSystemContext()
@@ -509,7 +471,7 @@ func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	transport := alltransports.TransportFromImageName(args[0])
 	if transport == nil {
-		return fmt.Errorf("Invalid %q: does not specify a transport", args[0])
+		return fmt.Errorf("invalid %q: does not specify a transport", args[0])
 	}
 
 	var repositoryName string
@@ -521,7 +483,7 @@ func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Unsupported transport '%s' for tag listing. Only supported: %s",
+		return fmt.Errorf("unsupported transport '%s' for tag listing. Only supported: %s",
 			transport.Name(), supportedTransports(", "))
 	}
 

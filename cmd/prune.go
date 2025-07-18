@@ -53,7 +53,7 @@ func bytesToByteUnit(bytes int64) string {
 
 	// Collect and sort the byte unit sizes
 	sizes := make([]int, 0)
-	for k, _ := range byteUnits {
+	for k := range byteUnits {
 		sizes = append(sizes, k)
 	}
 	sort.Ints(sizes)
@@ -212,7 +212,6 @@ func getManifestSizeMaps(rawManifest []byte, mimeType string) (map[string]int64,
 	// Initialize size & size map vars
 	var configSize int64
 	configSizeMap := make(map[string]int64)
-	layerSizeMap := make(map[string]int64)
 
 	// Get the config size
 	configInfo := mfs.ConfigInfo()
@@ -224,21 +223,17 @@ func getManifestSizeMaps(rawManifest []byte, mimeType string) (map[string]int64,
 	configSizeMap[string(configInfo.Digest)] = configSize
 
 	// Get layer sizes
-	layerSizeMap = getLayerSizeMap(mfs.LayerInfos())
+	layerSizeMap := getLayerSizeMap(mfs.LayerInfos())
 
 	return configSizeMap, layerSizeMap, nil
 }
 
-func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo string, rawManifest []byte, mimeType string) (map[string]int64, map[string]int64, error) {
+func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo string, rawManifest []byte, mimeType string) (configSizeMap map[string]int64, layerSizeMap map[string]int64, retErr error) {
 	// Convert the raw manifest to a slice of v2 descriptors
 	manifestList, err := manifest.ListFromBlob(rawManifest, mimeType)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to convert raw manifest to manifest list: %w", err)
 	}
-
-	// Initialize maps for the config & layer sizes of each manifest
-	configSizeMap := make(map[string]int64)
-	layerSizeMap := make(map[string]int64)
 
 	// Loop through the manifest list and append the size maps for each
 	for _, digest := range manifestList.Instances() {
@@ -256,7 +251,11 @@ func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to instantiate image source: %w", err)
 		}
-		defer src.Close()
+		defer func() {
+			if err := src.Close(); err != nil {
+				retErr = noteCloseFailure(retErr, "closing image", err)
+			}
+		}()
 
 		// Get the raw manifest
 		rawManifest, _, err := src.GetManifest(ctx, nil)
@@ -282,11 +281,11 @@ func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo
 	return configSizeMap, layerSizeMap, nil
 }
 
-func getSizeMaps(ctx context.Context, sys *types.SystemContext, url string) (map[string]int64, map[string]int64, error) {
+func getSizeMaps(ctx context.Context, sys *types.SystemContext, url string) (configSizeMap map[string]int64, layerSizeMap map[string]int64, retErr error) {
 	// Parse the image URL into an image reference
 	ref, err := alltransports.ParseImageName(url)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error parsing image reference: %w", err)
+		return nil, nil, fmt.Errorf("error parsing image reference: %w", err)
 	}
 
 	// Capture the repository of the image URL
@@ -297,7 +296,11 @@ func getSizeMaps(ctx context.Context, sys *types.SystemContext, url string) (map
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to instantiate image source: %w", err)
 	}
-	defer src.Close()
+	defer func() {
+		if err := src.Close(); err != nil {
+			retErr = noteCloseFailure(retErr, "closing image", err)
+		}
+	}()
 
 	// Get the raw manifest
 	rawManifest, _, err := src.GetManifest(ctx, nil)
@@ -306,8 +309,6 @@ func getSizeMaps(ctx context.Context, sys *types.SystemContext, url string) (map
 	}
 
 	// Get the manifest MIME type
-	var configSizeMap map[string]int64
-	var layerSizeMap map[string]int64
 	mimeType := manifest.GuessMIMEType(rawManifest)
 
 	// Get the size maps based on whether the image is multi-arch or single-arch
@@ -449,7 +450,7 @@ func getDeduplicatedSizeParallel(ctx context.Context, sys *types.SystemContext, 
 func displayPruneSummary(ctx context.Context, sys *types.SystemContext, userInput string, toPrune []string, toKeep []string) error {
 	imgRef, err := parseDockerRepositoryReference(userInput)
 	if err != nil {
-		return fmt.Errorf("Error parsing image reference: %w", err)
+		return fmt.Errorf("error parsing image reference: %w", err)
 	}
 	repositoryName := imgRef.DockerReference().Name()
 
@@ -460,13 +461,28 @@ func displayPruneSummary(ctx context.Context, sys *types.SystemContext, userInpu
 	// Summarize the list
 	fmt.Println("")
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', 0)
-	fmt.Fprintln(w, "ACTION\tTAGS\tSIZE")
+	_, err = fmt.Fprintln(w, "ACTION\tTAGS\tSIZE")
+	if err != nil {
+		return fmt.Errorf("error writing prune summary: %w", err)
+	}
 	pruneDisp := fmt.Sprintf("Prune\t%d\t%s", len(toPrune), bytesToByteUnit(pruneSize))
 	keepDisp := fmt.Sprintf("Keep\t%d\t%s", len(toKeep), bytesToByteUnit(keepSize))
-	fmt.Fprintln(w, pruneDisp)
-	fmt.Fprintln(w, keepDisp)
-	fmt.Fprintln(w, "")
-	w.Flush()
+	_, err = fmt.Fprintln(w, pruneDisp)
+	if err != nil {
+		return fmt.Errorf("error writing prune summary: %w", err)
+	}
+	_, err = fmt.Fprintln(w, keepDisp)
+	if err != nil {
+		return fmt.Errorf("error writing prune summary: %w", err)
+	}
+	_, err = fmt.Fprintln(w, "")
+	if err != nil {
+		return fmt.Errorf("error writing prune summary: %w", err)
+	}
+	err = w.Flush()
+	if err != nil {
+		return fmt.Errorf("error writing prune summary: %w", err)
+	}
 	return nil // Success
 }
 
@@ -573,12 +589,12 @@ func getFilteredDockerTags(ctx context.Context, sys *types.SystemContext, opts *
 	// Get the repo tags
 	imgRef, err := parseDockerRepositoryReference(userInput)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing image reference: %w", err)
+		return nil, fmt.Errorf("error parsing image reference: %w", err)
 	}
 	repositoryName := imgRef.DockerReference().Name()
 	tags, err := docker.GetRepositoryTags(ctx, sys, imgRef)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting repository tags: %w", err)
+		return nil, fmt.Errorf("error getting repository tags: %w", err)
 	}
 
 	// If the user requests all tags before a certain threshold, then filter
@@ -600,7 +616,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 	// Get the filtered docker tags for the given repository
 	filteredTags, err := getFilteredDockerTags(ctx, sys, opts.intoTagsOptions(), userInput)
 	if err != nil {
-		return fmt.Errorf("Error getting filtered docker tags: %w", err)
+		return fmt.Errorf("error getting filtered docker tags: %w", err)
 	}
 
 	// Determine which images to prune vs keep based on user input
@@ -619,7 +635,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 	if !opts.pruneOpts.SkipSummary {
 		err = displayPruneSummary(ctx, sys, userInput, toPrune, toKeep)
 		if err != nil {
-			return fmt.Errorf("Error displaying prune summary: %w", err)
+			return fmt.Errorf("error displaying prune summary: %w", err)
 		}
 	}
 
@@ -634,7 +650,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 	// Prune the docker tags
 	err = pruneDockerTagsParallel(ctx, sys, userInput, toPrune)
 	if err != nil {
-		return fmt.Errorf("Error pruning tags: %w", err)
+		return fmt.Errorf("error pruning tags: %w", err)
 	}
 	return nil // Success
 }
@@ -644,7 +660,7 @@ func (opts *pruneOptions) run(args []string, stdout io.Writer) (retErr error) {
 	defer cancel()
 
 	if len(args) != 1 {
-		return errorShouldDisplayUsage{errors.New("Exactly one non-option argument expected")}
+		return errorShouldDisplayUsage{errors.New("exactly one non-option argument expected")}
 	}
 
 	sys, err := opts.image.newSystemContext()
@@ -654,7 +670,7 @@ func (opts *pruneOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	transport := alltransports.TransportFromImageName(args[0])
 	if transport == nil {
-		return fmt.Errorf("Invalid %q: does not specify a transport", args[0])
+		return fmt.Errorf("invalid %q: does not specify a transport", args[0])
 	}
 
 	if val, ok := pruneTransportHandlers[transport.Name()]; ok {
@@ -663,7 +679,7 @@ func (opts *pruneOptions) run(args []string, stdout io.Writer) (retErr error) {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Unsupported transport '%s' for tag listing. Only supported: %s",
+		return fmt.Errorf("unsupported transport '%s' for tag listing. Only supported: %s",
 			transport.Name(), supportedPruneTransports(", "))
 	}
 
