@@ -1,0 +1,7 @@
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+
+ARG VERSION=v0.1.0
+
+LABEL com.ibm.version="${VERSION}"
+
+RUN echo $RANDOM > /random.txt

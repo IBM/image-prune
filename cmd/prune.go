@@ -229,6 +229,10 @@ func getManifestSizeMaps(rawManifest []byte, mimeType string) (map[string]int64,
 }
 
 func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo string, rawManifest []byte, mimeType string) (configSizeMap map[string]int64, layerSizeMap map[string]int64, retErr error) {
+	// Initialize the size maps
+	configSizeMap = make(map[string]int64)
+	layerSizeMap = make(map[string]int64)
+	
 	// Convert the raw manifest to a slice of v2 descriptors
 	manifestList, err := manifest.ListFromBlob(rawManifest, mimeType)
 	if err != nil {
@@ -447,13 +451,7 @@ func getDeduplicatedSizeParallel(ctx context.Context, sys *types.SystemContext, 
 
 // Function that displays the prune summary of size freed in pruning
 // TODO: Determine if errors occurred during size calculation
-func displayPruneSummary(ctx context.Context, sys *types.SystemContext, userInput string, toPrune []string, toKeep []string) error {
-	imgRef, err := parseDockerRepositoryReference(userInput)
-	if err != nil {
-		return fmt.Errorf("error parsing image reference: %w", err)
-	}
-	repositoryName := imgRef.DockerReference().Name()
-
+func displayPruneSummary(ctx context.Context, sys *types.SystemContext, repositoryName string, toPrune []string, toKeep []string) error {
 	// Compute the deduplicated size of the images that will be pruned vs kept
 	pruneSize := getDeduplicatedSizeParallel(ctx, sys, repositoryName, toPrune)
 	keepSize := getDeduplicatedSizeParallel(ctx, sys, repositoryName, toKeep)
@@ -461,7 +459,7 @@ func displayPruneSummary(ctx context.Context, sys *types.SystemContext, userInpu
 	// Summarize the list
 	fmt.Println("")
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', 0)
-	_, err = fmt.Fprintln(w, "ACTION\tTAGS\tSIZE")
+	_, err := fmt.Fprintln(w, "ACTION\tTAGS\tSIZE")
 	if err != nil {
 		return fmt.Errorf("error writing prune summary: %w", err)
 	}
@@ -541,13 +539,10 @@ func pruneDockerTagsParallel(ctx context.Context, sys *types.SystemContext, repo
 			// Close the prune wait group once complete
 			defer func() { pruneWaitGroup.Done(); <-pruneLimitCh }()
 
-			// Append docker transport to image url
-			// This assumes all images are in remote distribution registry
-			url = fmt.Sprintf("docker://%s", url)
-
 			// Parse the image URL into a reference
 			ref, err := alltransports.ParseImageName(url)
 			if err != nil {
+				fmt.Println(url)
 				errCh <- fmt.Errorf("failed to parse image url: %w", err)
 				return
 			}
@@ -585,13 +580,12 @@ func pruneDockerTagsParallel(ctx context.Context, sys *types.SystemContext, repo
 }
 
 // Function that gets the filtered tags to prune
-func getFilteredDockerTags(ctx context.Context, sys *types.SystemContext, opts *tagsOptions, userInput string) (*filteredTags, error) {
+func getFilteredDockerTags(ctx context.Context, sys *types.SystemContext, opts *tagsOptions, repositoryName string) (*filteredTags, error) {
 	// Get the repo tags
-	imgRef, err := parseDockerRepositoryReference(userInput)
+	imgRef, err := parseDockerRepositoryReference(fmt.Sprintf("docker://%s", repositoryName))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing image reference: %w", err)
 	}
-	repositoryName := imgRef.DockerReference().Name()
 	tags, err := docker.GetRepositoryTags(ctx, sys, imgRef)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository tags: %w", err)
@@ -613,8 +607,15 @@ func getFilteredDockerTags(ctx context.Context, sys *types.SystemContext, opts *
 
 // Function that prunes docker tags
 func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneOptions, userInput string) error {
+	// Parse the image repo from the user input
+	imgRef, err := parseDockerRepositoryReference(userInput)
+	if err != nil {
+		return fmt.Errorf("error parsing image reference: %w", err)
+	}
+	repositoryName := imgRef.DockerReference().Name()
+	
 	// Get the filtered docker tags for the given repository
-	filteredTags, err := getFilteredDockerTags(ctx, sys, opts.intoTagsOptions(), userInput)
+	filteredTags, err := getFilteredDockerTags(ctx, sys, opts.intoTagsOptions(), repositoryName)
 	if err != nil {
 		return fmt.Errorf("error getting filtered docker tags: %w", err)
 	}
@@ -633,7 +634,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 	// Display the prune summary
 	// TODO: Error check - determine if errors occurred during size calculation
 	if !opts.pruneOpts.SkipSummary {
-		err = displayPruneSummary(ctx, sys, userInput, toPrune, toKeep)
+		err = displayPruneSummary(ctx, sys, repositoryName, toPrune, toKeep)
 		if err != nil {
 			return fmt.Errorf("error displaying prune summary: %w", err)
 		}
@@ -648,7 +649,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 	}
 
 	// Prune the docker tags
-	err = pruneDockerTagsParallel(ctx, sys, userInput, toPrune)
+	err = pruneDockerTagsParallel(ctx, sys, repositoryName, toPrune)
 	if err != nil {
 		return fmt.Errorf("error pruning tags: %w", err)
 	}

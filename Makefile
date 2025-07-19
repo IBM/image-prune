@@ -32,3 +32,6 @@ lint:
 
 release:
 	bash ci/release.sh "$(RELEASE_UPLOAD_URL)" "$(PLATFORMS)"
+
+test-setup:
+	bash ci/test/setup.sh
