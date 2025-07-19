@@ -187,7 +187,7 @@ func filterDockerTagBySemver(filtered *filteredTags, opts *tagsOptions, threshol
 
 	// Compare the tag semver against the threshold semver
 	cmp := semver.Compare(validThreshold, validTagVersion)
-	if cmp < 0 {
+	if cmp <= 0 {
 		filtered.ToKeep = append(filtered.ToKeep, tag)
 	} else {
 		filtered.ToPrune = append(filtered.ToPrune, tag)

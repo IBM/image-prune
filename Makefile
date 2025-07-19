@@ -2,7 +2,7 @@ VERSION := v0.1.0
 DATE := $(shell date)
 COMMIT := $(shell git rev-parse --short HEAD)
 
-VERSION_LINKER_FLAG := 'main.ImagePruneVersion=$(BUILD_VERSION)'
+VERSION_LINKER_FLAG := 'main.ImagePruneVersion=$(VERSION)'
 DATE_LINKER_FLAG := 'main.ImagePruneBuildDate=$(DATE)'
 COMMIT_LINKER_FLAG := 'main.ImagePruneCommit=$(COMMIT)'
 LINKER_FLAGS := "-X $(VERSION_LINKER_FLAG) -X $(DATE_LINKER_FLAG) -X $(COMMIT_LINKER_FLAG)"
@@ -32,3 +32,6 @@ lint:
 
 release:
 	bash ci/release.sh "$(RELEASE_UPLOAD_URL)" "$(PLATFORMS)"
+
+test-setup:
+	bash ci/test/setup.sh
