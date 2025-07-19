@@ -1,4 +1,4 @@
-VERSION := v0.1.0
+VERSION := v1.0.0-alpha.1
 DATE := $(shell date)
 COMMIT := $(shell git rev-parse --short HEAD)
 
