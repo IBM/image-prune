@@ -2,7 +2,7 @@ WORKDIR=$(pwd)
 
 # Ensure GITHUB_TOKEN is set
 if [ -z "$GITHUB_TOKEN" ]; then
-    echo "GITHUB_TOKEN environment variable must be set"
+    echo "[ERROR] GITHUB_TOKEN environment variable must be set"
     exit 1
 fi
 
@@ -11,12 +11,24 @@ GITHUB_API_DOMAIN="github.com"
 GITHUB_REPO_SHORT_NAME="IBM/image-prune"
 
 # Input parameters
-UPLOAD_URL=$($1)
-PLATFORMS=${$2:-"darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x"}
+UPLOAD_URL=$1
+PLATFORMS=${2:-"darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x"}
+
+# Display release script usage
+function display_usage() {
+    echo "
+Usage:
+  <sh | bash> release.sh <upload-url> [platforms]
+
+Example:
+  sh release.sh \"https://uploads.github.com/...\" \"darwin/amd64 linux/amd64\"
+"
+}
 
 # Ensure UPLOAD_URL is set
 if [ -z "$UPLOAD_URL" ]; then
-    echo "GITHUB_TOKEN environment variable must be set"
+    echo "[ERROR] UPLOAD_URL must be set"
+    display_usage
     exit 1
 fi
 
