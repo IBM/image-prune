@@ -12,7 +12,7 @@ PLATFORMS ?= darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 lin
 RELEASE_UPLOAD_URL ?=
 
 build:
-	for plt in $(PLATFORMS); \
+	@for plt in $(PLATFORMS); \
 	do \
 		os=$${plt%%/*}; \
 		arv=$${plt#*/}; \
@@ -21,7 +21,7 @@ build:
 			-o dist/image-prune-$${os}-$${arch} \
 			-ldflags=$(LINKER_FLAGS) \
 			-tags exclude_graphdriver_btrfs \
-			./cmd; \
+			.; \
 	done \
 
 lint-dependencies:
@@ -31,7 +31,7 @@ lint:
 	@golangci-lint run
 
 release:
-	bash ci/release.sh "$(RELEASE_UPLOAD_URL)" "$(PLATFORMS)"
+	@bash ci/release.sh "$(RELEASE_UPLOAD_URL)" "$(PLATFORMS)"
 
 test-setup:
-	bash ci/test/setup.sh
+	@bash ci/test/setup.sh
