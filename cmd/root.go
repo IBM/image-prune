@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/image/v5/types"
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -43,7 +42,7 @@ func requireSubcommand(cmd *cobra.Command, args []string) error {
 }
 
 // createApp returns a cobra.Command, and the underlying globalOptions object, to be run or tested.
-func createApp() (*cobra.Command, *globalOptions) {
+func CreateApp() (*cobra.Command, *globalOptions) {
 	opts := globalOptions{}
 
 	rootCommand := &cobra.Command{
@@ -91,20 +90,6 @@ func (opts *globalOptions) before(cmd *cobra.Command, args []string) error {
 		logrus.Warn("'--tls-verify' is deprecated, please set this on the specific subcommand")
 	}
 	return nil
-}
-
-func main() {
-	if reexec.Init() {
-		return
-	}
-	rootCmd, _ := createApp()
-	if err := rootCmd.Execute(); err != nil {
-		if isNotFoundImageError(err) {
-			logrus.StandardLogger().Log(logrus.FatalLevel, err)
-			logrus.Exit(2)
-		}
-		logrus.Fatal(err)
-	}
 }
 
 // commandTimeoutContext returns a context.Context and a cancellation callback based on opts.
