@@ -53,7 +53,7 @@ Each of our releases contain pre-compiled binaries which you may install manuall
 
 If you have `go` installed, you may also install the CLI using
 ```
-GOBIN="/usr/local/bin" go install github.com/IBM/image-prune/cmd@v1.0.0-alpha.1
+GOBIN="/usr/local/bin" go install github.com/IBM/image-prune@v1.0.0-alpha.1
 ```
 
 > [!NOTE]
