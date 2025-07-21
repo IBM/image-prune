@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -280,11 +280,11 @@ func adjustUsage(c *cobra.Command) {
 	c.DisableFlagsInUseLine = true
 }
 
-// isNotFoundImageError heuristically attempts to determine whether an error
+// IsNotFoundImageError heuristically attempts to determine whether an error
 // is saying the remote source couldn't find the image (as opposed to an
 // authentication error, an I/O error etc.)
 // TODO drive this into containers/image properly
-func isNotFoundImageError(err error) bool {
+func IsNotFoundImageError(err error) bool {
 	var layoutImageNotFoundError ocilayout.ImageNotFoundError
 	var archiveImageNotFoundError ociarchive.ImageNotFoundError
 	return isDockerManifestUnknownError(err) ||

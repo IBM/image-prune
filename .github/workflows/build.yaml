@@ -3,8 +3,8 @@ name: Build
 on:
   push:
     branches: '**'
-    release:
-      types: [created]
+  release:
+    types: [created]
 
 permissions:
   contents: write
