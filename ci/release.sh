@@ -11,7 +11,7 @@ GITHUB_API_DOMAIN="github.com"
 GITHUB_REPO_SHORT_NAME="IBM/image-prune"
 
 # Input parameters
-UPLOAD_URL=$1
+UPLOAD_URL=${1%%\{*}
 PLATFORMS=${2:-"darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x"}
 
 # Display release script usage
