@@ -2,15 +2,21 @@
 
 A command-line interface for pruning container images in bulk from a container image distribution registry
 
+**Install**: See [the Install section below](#install)
+
+**Usage**: See [doc/usage.md](doc/usage.md)
+
 > [!WARNING]
 > Please be aware of this known issue.
 > - [Skopeo delete command deletes by reference even when we provide tag](https://github.com/containers/skopeo/issues/1432)
 >
 > The `image-prune` CLI is built on the same foundational library as `skopeo`, and thus is impacted by this issue as well.  Please use this tool at your own risk.
 
+## Demo
+
 ![image-prune prune --before-version](./doc/img/prune-before-version-tag.gif)
 
-For more demos, see [doc/demos.md](./doc/demos.md)
+For more demos, see [doc/usage.md](./doc/usage.md)
 
 ## Install
 
