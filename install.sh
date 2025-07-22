@@ -1,5 +1,5 @@
 # User input
-VERSION=${1:-"v1.0.0-alpha.1"}
+VERSION=${1:-"v1.0.0-alpha.2"}
 OPERATING_SYSTEM=${2:-"$(go env GOOS 2>/dev/null)"}
 ARCHITECTURE=${3:-"$(go env GOARCH 2>/dev/null)"}
 
@@ -10,7 +10,7 @@ Usage:
   <sh | bash> install.sh <version> [os] [arch]
 
 Example:
-  sh install.sh v1.0.0-alpha.1 linux amd64
+  sh install.sh v1.0.0-alpha.2 linux amd64
 "
 }
 
