@@ -232,7 +232,7 @@ func getManifestListSizeMaps(ctx context.Context, sys *types.SystemContext, repo
 	// Initialize the size maps
 	configSizeMap = make(map[string]int64)
 	layerSizeMap = make(map[string]int64)
-	
+
 	// Convert the raw manifest to a slice of v2 descriptors
 	manifestList, err := manifest.ListFromBlob(rawManifest, mimeType)
 	if err != nil {
@@ -613,7 +613,7 @@ func pruneDockerTags(ctx context.Context, sys *types.SystemContext, opts *pruneO
 		return fmt.Errorf("error parsing image reference: %w", err)
 	}
 	repositoryName := imgRef.DockerReference().Name()
-	
+
 	// Get the filtered docker tags for the given repository
 	filteredTags, err := getFilteredDockerTags(ctx, sys, opts.intoTagsOptions(), repositoryName)
 	if err != nil {

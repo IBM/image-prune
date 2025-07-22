@@ -7,12 +7,10 @@ require (
 	github.com/containers/image/v5 v5.36.0
 	github.com/containers/storage v1.59.0
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
 	golang.org/x/mod v0.26.0
-	golang.org/x/term v0.33.0
 )
 
 require (
@@ -56,6 +54,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
 	github.com/opencontainers/selinux v1.12.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
