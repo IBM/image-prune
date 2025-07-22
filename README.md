@@ -32,7 +32,7 @@ Usage:
   <sh | bash> install.sh <version> [os] [arch]
 
 Example:
-  sh install.sh v1.0.0-alpha.1 linux amd64
+  sh install.sh v1.0.0-alpha.2 linux amd64
 ```
 
 This assumes
@@ -53,7 +53,7 @@ Each of our releases contain pre-compiled binaries which you may install manuall
 
 If you have `go` installed, you may also install the CLI using
 ```
-GOBIN="/usr/local/bin" go install github.com/IBM/image-prune@v1.0.0-alpha.1
+GOBIN="/usr/local/bin" go install github.com/IBM/image-prune@v1.0.0-alpha.2
 ```
 
 > [!NOTE]
@@ -61,7 +61,7 @@ GOBIN="/usr/local/bin" go install github.com/IBM/image-prune@v1.0.0-alpha.1
 
 #### Using `go build`
 
-Clone this repository on the tag corresponding to the version you would like to install.  The latest is `v1.0.0-alpha.1`.  Run
+Clone this repository on the tag corresponding to the version you would like to install.  The latest is `v1.0.0-alpha.2`.  Run
 ```bash
 YOUR_OS="<your-os>"
 YOUR_ARCH="<your-arch>"
