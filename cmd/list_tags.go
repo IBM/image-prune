@@ -82,7 +82,7 @@ type tagsOptions struct {
 }
 
 var transportHandlers = map[string]func(ctx context.Context, sys *types.SystemContext, opts *tagsOptions, userInput string) (repositoryName string, tagListing []string, err error){
-	docker.Transport.Name():  listDockerRepoTags,
+	docker.Transport.Name(): listDockerRepoTags,
 }
 
 // supportedTransports returns all the supported transports
