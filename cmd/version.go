@@ -9,7 +9,7 @@ import (
 )
 
 // Public variables for image-prune version
-var ImagePruneVersion string = "v0.1.0-local.build"
+var ImagePruneVersion string = "v1.0.0-local.build"
 var ImagePruneBuildDate string = "N/a"
 var ImagePruneCommit string = "N/a"
 
