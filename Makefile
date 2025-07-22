@@ -2,9 +2,9 @@ VERSION := v0.1.0
 DATE := $(shell date)
 COMMIT := $(shell git rev-parse --short HEAD)
 
-VERSION_LINKER_FLAG := 'main.ImagePruneVersion=$(VERSION)'
-DATE_LINKER_FLAG := 'main.ImagePruneBuildDate=$(DATE)'
-COMMIT_LINKER_FLAG := 'main.ImagePruneCommit=$(COMMIT)'
+VERSION_LINKER_FLAG := 'github.com/IBM/image-prune/cmd.ImagePruneVersion=$(VERSION)'
+DATE_LINKER_FLAG := 'github.com/IBM/image-prune/cmd.ImagePruneBuildDate=$(DATE)'
+COMMIT_LINKER_FLAG := 'github.com/IBM/image-prune/cmd.ImagePruneCommit=$(COMMIT)'
 LINKER_FLAGS := "-X $(VERSION_LINKER_FLAG) -X $(DATE_LINKER_FLAG) -X $(COMMIT_LINKER_FLAG)"
 
 PLATFORMS ?= darwin/amd64 darwin/arm64 windows/amd64 linux/amd64 linux/arm64 linux/ppc64le linux/s390x
