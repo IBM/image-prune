@@ -1,6 +1,6 @@
 module github.com/IBM/image-prune
 
-go 1.24.3
+go 1.25.0
 
 require (
 	github.com/containers/common v0.64.0
@@ -10,7 +10,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
-	golang.org/x/mod v0.26.0
+	golang.org/x/mod v0.40.0
 )
 
 require (
