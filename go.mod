@@ -7,7 +7,7 @@ require (
 	github.com/containers/image/v5 v5.36.0
 	github.com/containers/storage v1.59.0
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
 	golang.org/x/mod v0.26.0
