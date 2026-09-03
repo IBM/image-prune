@@ -3,9 +3,9 @@ module github.com/IBM/image-prune
 go 1.24.3
 
 require (
-	github.com/containers/common v0.64.0
-	github.com/containers/image/v5 v5.36.0
-	github.com/containers/storage v1.59.0
+	github.com/containers/common v0.64.2
+	github.com/containers/image/v5 v5.36.2
+	github.com/containers/storage v1.59.1
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -60,7 +60,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sylabs/sif/v2 v2.21.1 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.3 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
